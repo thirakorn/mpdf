@@ -17,9 +17,9 @@ class PageBox implements \ArrayAccess
 		];
 	}
 
-    /**
-     * @return void
-     */
+	/**
+	 * @return void
+	 */
 	#[\ReturnTypeWillChange]
 	public function offsetSet($offset, $value)
 	{
@@ -30,18 +30,18 @@ class PageBox implements \ArrayAccess
 		$this->container[$offset] = $value;
 	}
 
-    /**
-     * @return bool
-     */
+	/**
+	 * @return bool
+	 */
 	#[\ReturnTypeWillChange]
 	public function offsetExists($offset)
 	{
 		return array_key_exists($offset, $this->container);
 	}
 
-    /**
-     * @return void
-     */
+	/**
+	 * @return void
+	 */
 	#[\ReturnTypeWillChange]
 	public function offsetUnset($offset)
 	{
@@ -52,9 +52,9 @@ class PageBox implements \ArrayAccess
 		$this->container[$offset] = null;
 	}
 
-    /**
-     * @return mixed
-     */
+	/**
+	 * @return mixed
+	 */
 	#[\ReturnTypeWillChange]
 	public function offsetGet($offset)
 	{
