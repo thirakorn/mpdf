@@ -8110,8 +8110,13 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 					$cutcharctr = $charctr;
 					$prevchar = $this->_moveToPrevChar($contentctr, $charctr, $content);
 					/////////////////////
-					// 3) Break at SPACE
+					// 3) Break at '|'
 					/////////////////////
+					if ($prevchar == '|') {
+						$breakfound = [$contentctr, $charctr, $cutcontentctr, $cutcharctr, 'discard'];
+					}
+					/////////////////////
+					// 3) Break at SPACE
 					if ($prevchar == ' ') {
 						$breakfound = [$contentctr, $charctr, $cutcontentctr, $cutcharctr, 'discard'];
 					} /////////////////////
@@ -8284,6 +8289,8 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 					$this->otl->trimOTLdata($cOTLdata[count($cOTLdata) - 1], false, true); // NB also does U+3000
 				}
 				/* -- END OTL -- */
+
+				$currContent = str_replace("|", '', $currContent);
 
 
 				// Selected OBJECTS are moved forward to next line, unless they come before a space or U+200B (type='discard')
@@ -8775,6 +8782,8 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 				$currContent .= $c;
 			}
 		}
+
+		$currContent = str_replace("|", '', $currContent);
 
 		unset($content);
 		unset($contentB);
