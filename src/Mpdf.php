@@ -8110,7 +8110,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 					$cutcharctr = $charctr;
 					$prevchar = $this->_moveToPrevChar($contentctr, $charctr, $content);
 					/////////////////////
-					// 3) Break at '|'
+					// 3) Break at '|' //Mob code
 					/////////////////////
 					if ($prevchar == '|') {
 						$breakfound = [$contentctr, $charctr, $cutcontentctr, $cutcharctr, 'discard'];
@@ -8290,7 +8290,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 				}
 				/* -- END OTL -- */
 
+				//MOB Code
 				$currContent = str_replace("|", '', $currContent);
+				$currContent = str_replace("\xe2\x80\x8b", "", $currContent);
 
 
 				// Selected OBJECTS are moved forward to next line, unless they come before a space or U+200B (type='discard')
@@ -8783,7 +8785,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			}
 		}
 
+		//MOB Code
 		$currContent = str_replace("|", '', $currContent);
+		$currContent = str_replace("\xe2\x80\x8b", "", $currContent);
 
 		unset($content);
 		unset($contentB);
