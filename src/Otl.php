@@ -208,7 +208,15 @@ class Otl
 
 			$charasstr = $this->unicode_hex($char);
 
-			if (strpos($this->GlyphClassMarks, $charasstr) !== false) {
+			// Thai above/below vowels and tone marks are zero-advance combining marks.
+			// Classify them as 'M' even when the font has no (or an incomplete) GDEF table,
+			// otherwise justification character-spacing (Tc) is applied between a base
+			// character and its mark and the mark visibly detaches.
+			$isThaiMark = ($char == 0x0E31)
+				|| ($char >= 0x0E34 && $char <= 0x0E3A)
+				|| ($char >= 0x0E47 && $char <= 0x0E4E);
+
+			if ($isThaiMark || strpos($this->GlyphClassMarks, $charasstr) !== false) {
 				$OTLdata[$subchunk][$charctr]['group'] = 'M';
 			} elseif ($char == 32 || $char == 12288) {
 				$OTLdata[$subchunk][$charctr]['group'] = 'S';
@@ -994,7 +1002,14 @@ class Otl
 						isset($this->OTLdata[$i + 1]['uni']) && (!isset($this->OTLdata[$i + 1]['syllable']) || !isset($this->OTLdata[$i + 1]['syllable']) || $this->OTLdata[$i + 1]['syllable'] != $this->OTLdata[$i]['syllable'])) {
 						array_splice($this->OTLdata, $i + 1, 0, $newinfo);
 						$this->_updateLigatureMarks($i, 1);
-					} elseif ($this->OTLdata[$i]['uni'] == 0x2e) { // Word end if Full-stop.
+					} elseif ($this->mpdf->useDictionaryLBR && $this->OTLdata[$i]['uni'] == 0x2e) {
+						// Word end if Full-stop.
+						// Only when the built-in dictionary line-breaker is in charge. In Thai a
+						// full stop is almost always a decimal point ("14.00", "0206.7") or an
+						// abbreviation dot ("ก.ค.ศ.", "น."), not a sentence end, so breaking after
+						// every one of them shreds numbers and abbreviations across lines. When the
+						// caller supplies its own U+200B break opportunities (useDictionaryLBR =
+						// false) those are authoritative and this guess must not be added on top.
 						array_splice($this->OTLdata, $i + 1, 0, $newinfo);
 						$this->_updateLigatureMarks($i, 1);
 					}

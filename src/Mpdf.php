@@ -3547,9 +3547,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 		$char = $unicode[0];
 		/* -- CJK-FONTS -- */
 		if ($this->CurrentFont['type'] == 'Type0') { // CJK Adobe fonts
-			if ($char == 173) {
+			if ($char == 173 || $char == 0x200B) {
 				return 0;
-			} // Soft Hyphens
+			} // Soft Hyphens [U+00AD] and zero-width space [U+200B]
 			elseif (isset($this->CurrentFont['cw'][$char])) {
 				$w+=$this->CurrentFont['cw'][$char];
 			} elseif (isset($this->CurrentFont['MissingWidth'])) {
@@ -3559,9 +3559,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			}
 		} else {
 			/* -- END CJK-FONTS -- */
-			if ($char == 173) {
+			if ($char == 173 || $char == 0x200B) {
 				return 0;
-			} // Soft Hyphens
+			} // Soft Hyphens [U+00AD] and zero-width space [U+200B]
 			elseif (($this->textvar & TextVars::FC_SMALLCAPS) && isset($this->upperCase[$char])) { // mPDF 5.7.1
 				$charw = $this->_getCharWidth($this->CurrentFont['cw'], $this->upperCase[$char]);
 				if ($charw !== false) {
@@ -3641,9 +3641,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			/* -- CJK-FONTS -- */
 			if ($this->CurrentFont['type'] == 'Type0') { // CJK Adobe fonts
 				foreach ($unicode as $char) {
-					if ($char == 0x00AD) {
+					if ($char == 0x00AD || $char == 0x200B) {
 						continue;
-					} // mPDF 6 soft hyphens [U+00AD]
+					} // mPDF 6 soft hyphens [U+00AD]; zero-width space [U+200B]
 					if (isset($cw[$char])) {
 						$w+=$cw[$char];
 					} elseif (isset($this->CurrentFont['MissingWidth'])) {
@@ -3655,9 +3655,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			} else {
 				/* -- END CJK-FONTS -- */
 				foreach ($unicode as $i => $char) {
-					if ($char == 0x00AD) {
+					if ($char == 0x00AD || $char == 0x200B) {
 						continue;
-					} // mPDF 6 soft hyphens [U+00AD]
+					} // mPDF 6 soft hyphens [U+00AD]; zero-width space [U+200B]
 					if (($textvar & TextVars::FC_SMALLCAPS) && isset($this->upperCase[$char])) {
 						$charw = $this->_getCharWidth($cw, $this->upperCase[$char]);
 						if ($charw !== false) {
@@ -4405,7 +4405,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			$s .= sprintf('BT ' . $aix . ' (%s) Tj ET', $px, $py, $txt2);
 		} // IF NOT corefonts [AND NO wordspacing] AND NOT SIP/SMP AND NOT SmCaps AND NOT Kerning AND NOT OTL
 		// Just output text
-		elseif (!$this->usingCoreFont && !($textvar & TextVars::FC_SMALLCAPS) && !($textvar & TextVars::FC_KERNING) && !(isset($this->CurrentFont['useOTL']) && ($this->CurrentFont['useOTL'] & 0xFF) && !empty($OTLdata['GPOSinfo']))) {
+		elseif (!$this->usingCoreFont && !($textvar & TextVars::FC_SMALLCAPS) && !($textvar & TextVars::FC_KERNING) && !(isset($this->CurrentFont['useOTL']) && ($this->CurrentFont['useOTL'] & 0xFF) && (!empty($OTLdata['GPOSinfo']) || (strpos((isset($OTLdata['group']) ? $OTLdata['group'] : ''), 'M') !== false && $this->charspacing)))) {
 			// IF SIP/SMP
 			if ($this->CurrentFont['sip'] || $this->CurrentFont['smp']) {
 				$txt2 = $this->UTF8toSubset($txt2);
@@ -5190,7 +5190,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 				$sub .= sprintf('BT ' . $aix . ' (%s) Tj ET', $px, $py, $txt2);
 			} // IF NOT corefonts AND NO wordspacing AND NOT SIP/SMP AND NOT SmCaps AND NOT Kerning AND NOT OTL
 			// Just output text
-			elseif (!$this->usingCoreFont && !$this->ws && !($textvar & TextVars::FC_SMALLCAPS) && !($textvar & TextVars::FC_KERNING) && !(isset($this->CurrentFont['useOTL']) && ($this->CurrentFont['useOTL'] & 0xFF) && !empty($OTLdata['GPOSinfo']))) {
+			elseif (!$this->usingCoreFont && !$this->ws && !($textvar & TextVars::FC_SMALLCAPS) && !($textvar & TextVars::FC_KERNING) && !(isset($this->CurrentFont['useOTL']) && ($this->CurrentFont['useOTL'] & 0xFF) && (!empty($OTLdata['GPOSinfo']) || (strpos((isset($OTLdata['group']) ? $OTLdata['group'] : ''), 'M') !== false && $this->charspacing)))) {
 				// IF SIP/SMP
 				if ((isset($this->CurrentFont['sip']) && $this->CurrentFont['sip']) || (isset($this->CurrentFont['smp']) && $this->CurrentFont['smp'])) {
 					$txt2 = $this->UTF8toSubset($txt2);
@@ -8291,8 +8291,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 				/* -- END OTL -- */
 
 				//MOB Code
-				$currContent = str_replace("|", '', $currContent);
-				$currContent = str_replace("\xe2\x80\x8b", "", $currContent);
+				$this->stripLBRmarkers($currContent, $cOTLdata[count($cOTLdata) - 1]);
 
 
 				// Selected OBJECTS are moved forward to next line, unless they come before a space or U+200B (type='discard')
@@ -8786,11 +8785,57 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 		}
 
 		//MOB Code
-		$currContent = str_replace("|", '', $currContent);
-		$currContent = str_replace("\xe2\x80\x8b", "", $currContent);
+		$this->stripLBRmarkers($currContent, $cOTLdata[count($cOTLdata) - 1]);
 
 		unset($content);
 		unset($contentB);
+	}
+
+	/**
+	 * Remove line-break-opportunity markers (U+200B and the legacy '|' marker) from a
+	 * finished line, keeping the parallel OTL data in sync.
+	 *
+	 * A plain str_replace() leaves $cOTLdata['char_data'] / ['group'] / ['GPOSinfo']
+	 * one entry longer than the string for every marker removed. Every glyph after the
+	 * marker then reads the wrong OTL entry, which shows up as stray .notdef boxes and
+	 * detached Thai tone marks / vowels.
+	 */
+	private function stripLBRmarkers(&$txt, &$cOTLdata)
+	{
+		if (!is_string($txt) || $txt === '') {
+			return;
+		}
+		if (strpos($txt, "\xe2\x80\x8b") === false && strpos($txt, '|') === false) {
+			return;
+		}
+
+		if (is_array($cOTLdata) && !empty($cOTLdata['char_data'])) {
+			$chars = preg_split('//u', $txt, -1, PREG_SPLIT_NO_EMPTY);
+			$charData = [];
+			$group = '';
+			$gpos = [];
+			$n = 0;
+			foreach ($chars as $i => $ch) {
+				if ($ch === "\xe2\x80\x8b" || $ch === '|') {
+					continue;
+				}
+				if (isset($cOTLdata['char_data'][$i])) {
+					$charData[] = $cOTLdata['char_data'][$i];
+				}
+				if (isset($cOTLdata['group'][$i])) {
+					$group .= $cOTLdata['group'][$i];
+				}
+				if (isset($cOTLdata['GPOSinfo'][$i])) {
+					$gpos[$n] = $cOTLdata['GPOSinfo'][$i];
+				}
+				$n++;
+			}
+			$cOTLdata['char_data'] = $charData;
+			$cOTLdata['group'] = $group;
+			$cOTLdata['GPOSinfo'] = $gpos;
+		}
+
+		$txt = str_replace(["\xe2\x80\x8b", '|'], '', $txt);
 	}
 
 	// ----------------------END OF FLOWING BLOCK------------------------------------//
@@ -25814,7 +25859,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 
 			$l = 0;
 			foreach ($u as $char) {
-				if ($char == 173 || $this->_charDefined($cw, $char) || ($char > 1536 && $char < 1791) || ($char > 2304 && $char < 3455 )) {
+				if ($char == 173 || $char == 0x200B || $this->_charDefined($cw, $char) || ($char > 1536 && $char < 1791) || ($char > 2304 && $char < 3455 )) {
 					$l++;
 				} else {
 					if ($l == 0 && $bsfctr == (count($this->backupSubsFont) - 1)) { // Not found even in last backup font
@@ -26088,7 +26133,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 
 			$l = 0;
 			foreach ($u as $char) {
-				if ($char == 173 || $this->_charDefined($cw, $char) || ($char > 1536 && $char < 1791) || ($char > 2304 && $char < 3455 )) {  // Arabic and Indic
+				if ($char == 173 || $char == 0x200B || $this->_charDefined($cw, $char) || ($char > 1536 && $char < 1791) || ($char > 2304 && $char < 3455 )) {  // Arabic and Indic
 					$l++;
 				} else {
 					if ($l == 0 && $bsfctr == (count($this->backupSubsFont) - 1)) { // Not found even in last backup font
